@@ -56,29 +56,39 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['lang'] = selected_lang
     chat_id = update.effective_chat.id
 
-    # إزالة أي وظائف قديمة للمستخدم ده عشان ميتكررش الإرسال
-    current_jobs = context.job_queue.get_jobs_by_name(str(chat_id))
-    for job in current_jobs:
-        job.schedule_removal()
+    # 1. التأكد من وجود JobQueue 🔍
+    if context.job_queue is None:
+        await query.edit_message_text(text="خطأ: نظام المواعيد غير مفعل في هذا الخادم.")
+        return
 
-    # تشغيل المؤقت: يبعت رسالة كل 3600 ثانية (ساعة واحدة)
+    # 2. تنظيف الوظائف القديمة بأمان 🧹
+    current_jobs = context.job_queue.get_jobs_by_name(str(chat_id))
+    if current_jobs:
+        for job in current_jobs:
+            job.schedule_removal()
+
+    # 3. تشغيل المؤقت الجديد ⏱️
+    #interval = 3600  # ساعة واحدة
+    interval = 60    # دقيقة واحدة (للتجربة فقط، غيرها لاحقاً)
+    
     context.job_queue.run_repeating(
         send_periodic_message, 
-        interval=3600, 
+        interval=interval, 
         first=10, 
         chat_id=chat_id, 
         name=str(chat_id)
     )
     
     messages = {
-        'ar': "✅ تم التفعيل! هبعتلك رسالة من القناة العربية كل ساعة.",
-        'en': "✅ Activated! I will send you a post from the English channel every hour.",
-        # أكمل باقي اللغات هنا بنفس الطريقة...
+        'ar': "✅ تم التفعيل بنجاح! سأرسل لك محتوى القناة العربية كل ساعة.",
+        'en': "✅ Activated! I will send you English content every hour.",
+        'fr': "✅ Activé ! Je vous enverrai le contenu chaque heure.",
+        'de': "✅ Aktiviert! Ich werde Ihnen jede Stunde Inhalte senden."
     }
     
     await query.edit_message_text(text=messages.get(selected_lang, "Done!"))
 
-# 5. تشغيل البوت 🚀
+    # 5. تشغيل البوت 🚀
 def main():
     # بناء التطبيق مع تفعيل الـ JobQueue
     application = Application.builder().token(TOKEN).build()
